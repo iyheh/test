@@ -1,1 +1,79 @@
-sedf
+#!/usr/bin/env python3
+import curses
+import random
+import time
+
+# Constants
+PLAYER_CHAR = 'A'
+BULLET_CHAR = '|'
+ENEMY_CHAR = 'X'
+
+PLAYER_Y = 0  # Bottom row index later
+
+
+class Game:
+    def __init__(self, stdscr):
+        self.stdscr = stdscr
+        self.height, self.width = stdscr.getmaxyx()
+        self.player_x = self.width // 2
+        self.bullets = []
+        self.enemy_x = random.randint(1, self.width - 2)
+        self.enemy_y = 1
+        self.last_shot_time = 0
+        global PLAYER_Y
+        PLAYER_Y = self.height - 2
+
+    def draw(self):
+        self.stdscr.clear()
+        # Draw enemy
+        self.stdscr.addch(self.enemy_y, self.enemy_x, ENEMY_CHAR)
+        # Draw bullets
+        for y, x in self.bullets:
+            if 0 <= y < self.height:
+                self.stdscr.addch(y, x, BULLET_CHAR)
+        # Draw player
+        self.stdscr.addch(PLAYER_Y, self.player_x, PLAYER_CHAR)
+        self.stdscr.refresh()
+
+    def update_bullets(self):
+        new_bullets = []
+        for y, x in self.bullets:
+            y -= 1
+            if y == self.enemy_y and x == self.enemy_x:
+                self.enemy_y = 1
+                self.enemy_x = random.randint(1, self.width - 2)
+                continue
+            if y >= 0:
+                new_bullets.append((y, x))
+        self.bullets = new_bullets
+
+    def run(self):
+        self.stdscr.nodelay(True)
+        self.stdscr.timeout(100)
+        while True:
+            key = self.stdscr.getch()
+            if key in (ord('q'), 27):
+                break
+            elif key in (curses.KEY_LEFT, ord('a')) and self.player_x > 0:
+                self.player_x -= 1
+            elif key in (curses.KEY_RIGHT, ord('d')) and self.player_x < self.width - 1:
+                self.player_x += 1
+            elif key == ord(' '):
+                current_time = time.time()
+                if current_time - self.last_shot_time > 0.2:
+                    self.bullets.append((PLAYER_Y - 1, self.player_x))
+                    self.last_shot_time = current_time
+
+            self.update_bullets()
+            self.draw()
+        self.stdscr.nodelay(False)
+
+
+def main(stdscr):
+    curses.curs_set(0)
+    game = Game(stdscr)
+    game.draw()
+    game.run()
+
+if __name__ == '__main__':
+    curses.wrapper(main)
